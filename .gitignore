@@ -1,0 +1,9 @@
+#   Nodes Dep
+/node_modules
+
+#   Deployment
+/dist
+
+#   Environment
+.env
+.yarn/*
