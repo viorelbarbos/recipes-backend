@@ -12,8 +12,11 @@ import { compareHashPassword, hashPassword } from '../utils/methods/bcrypt';
 import { Router, Response, Request } from 'express';
 import {
     createUser,
+    deleteUserByIdNeo,
+    getAllUsersNeo,
     getUserByEmailNeo,
     getUserByIdNeo,
+    updateUserByIdNeo,
 } from '../services/neo4j/user.service';
 
 const router = Router();
@@ -29,6 +32,13 @@ const router = Router();
 router.post('/', async (req: Request, res: Response<IResponseStructure>) => {
     try {
         const user: IUser = req.body.user;
+        const dataBaseType: string = req.body.dataBaseType;
+
+        if (!dataBaseType)
+            return res.status(400).json({
+                success: false,
+                message: 'Please specify the database type',
+            });
 
         if (
             !user ||
@@ -41,34 +51,45 @@ router.post('/', async (req: Request, res: Response<IResponseStructure>) => {
                 success: false,
                 message: 'Please fill all fields',
             });
-        const neo4jUser = await createUser(user);
-        console.log(neo4jUser?.summary);
-        //check if user exists
-        const userExists = await getUserByEmail(user.email);
+
+        let userExists;
+        if (dataBaseType === 'mongoDB') {
+            //check if user exists
+            userExists = await getUserByEmail(user.email);
+        } else if (dataBaseType === 'neo4j') {
+            //check if user exists
+            userExists = await getUserByEmailNeo(user.email);
+        }
         if (userExists) {
             return res.status(400).json({
                 success: false,
                 message: 'User already exists',
             });
         }
-
         //hash password
         user.password = await hashPassword(user.password);
 
+        let newUser;
         //add user to database in mongoDB
-        const newUser = await addUser(user);
-
+        if (dataBaseType === 'mongoDB') newUser = await addUser(user);
         //add user to database in neo4j
+        else if (dataBaseType === 'neo4j') newUser = await createUser(user);
+
+        if (!newUser)
+            return res.status(400).json({
+                success: false,
+                message: 'User was not added',
+            });
 
         return res.status(201).json({
             success: true,
             message: 'User added successfully',
             data: {
                 newUser: {
-                    firstName: newUser.firstName,
-                    lastName: newUser.lastName,
-                    email: newUser.email,
-                    _id: newUser._id,
+                    firstName: newUser?.firstName,
+                    lastName: newUser?.lastName,
+                    email: newUser?.email,
+                    _id: newUser?._id,
                 },
             },
         });
@@ -93,14 +114,20 @@ router.post(
     async (req: Request, res: Response<IResponseStructure>) => {
         try {
             const { email, password } = req.body;
+
+            const dataBaseType: string = req.body.dataBaseType;
+
             if (!email || !password)
                 return res.status(400).json({
                     success: false,
                     message: 'Please fill all fields',
                 });
 
+            let user;
             //check if user exists
-            const user = await getUserByEmail(email);
+            if (dataBaseType === 'mongoDB') user = await getUserByEmail(email);
+            else if (dataBaseType === 'neo4j')
+                user = await getUserByEmailNeo(email);
             if (!user) {
                 return res.status(400).json({
                     success: false,
@@ -117,7 +144,13 @@ router.post(
                 });
             }
 
-            const authUser = await getUserById(user._id!);
+            let authUser;
+            //get user from database in mongoDB
+            if (dataBaseType === 'mongoDB')
+                authUser = await getUserById(user._id!);
+            //get user from database in neo4j
+            else if (dataBaseType === 'neo4j')
+                authUser = await getUserByIdNeo(Number(user._id!));
 
             return res.status(200).json({
                 success: true,
@@ -134,73 +167,89 @@ router.post(
 );
 
 /**
- * @path /v1/user/
+ * @path /v1/user/dataBaseType/:dataBaseType
  * Get all users from the database.
  * @response 200: All users from the database.
  * @response 400: No users were found in the database.
  */
 
-router.get('/', async (req: Request, res: Response<IResponseStructure>) => {
-    try {
-        const users = await getUsers();
-        return res.status(200).json({
-            success: true,
-            message: 'Users retrieved successfully',
-            data: { users },
-        });
-    } catch (error: any) {
-        return res.status(400).json({
-            success: false,
-            message: error.message,
-        });
+router.get(
+    '/dataBaseType/:dataBaseType',
+    async (req: Request, res: Response<IResponseStructure>) => {
+        try {
+            const dataBaseType: string = req.params.dataBaseType;
+
+            let users;
+            //get all users from database in mongoDB
+            if (dataBaseType === 'mongoDB') users = await getUsers();
+            //get all users from database in neo4j
+            else if (dataBaseType === 'neo4j') users = await getAllUsersNeo();
+            return res.status(200).json({
+                success: true,
+                message: 'Users retrieved successfully',
+                data: { users },
+            });
+        } catch (error: any) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
     }
-});
+);
 
 /**
- * @path /v1/user/:id
+ * @path /v1/user/:id/:dataBaseType
  * Get a user from the database by their id.
  * @param id The id of the user to get from the database.
  * @response 200: The user that was retrieved from the database.
  * @response 400: The user was not retrieved from the database.
  */
 
-router.get('/:id', async (req: Request, res: Response<IResponseStructure>) => {
-    try {
-        const id = req.params.id;
+router.get(
+    '/:id/:dataBaseType',
+    async (req: Request, res: Response<IResponseStructure>) => {
+        try {
+            const id = req.params.id;
+            const dataBaseType: string = req.params.dataBaseType;
 
-        if (!id) {
+            if (!id) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No id was provided',
+                });
+            }
+
+            let user;
+            //get user from database in mongoDB
+            if (dataBaseType === 'mongoDB') user = await getUserById(id);
+            //get user from database in neo4j
+            else if (dataBaseType === 'neo4j')
+                user = await getUserByIdNeo(Number(id));
+
+            if (!user) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'User does not exist',
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: 'User retrieved successfully',
+                data: { user },
+            });
+        } catch (error: any) {
             return res.status(400).json({
                 success: false,
-                message: 'No id was provided',
+                message: error.message,
             });
         }
-
-        const user = await getUserById(id);
-        const neo4jUser = await getUserByIdNeo(Number(id));
-        console.log(neo4jUser);
-
-        if (!user) {
-            return res.status(400).json({
-                success: false,
-                message: 'User does not exist',
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: 'User retrieved successfully',
-            data: { user },
-        });
-    } catch (error: any) {
-        return res.status(400).json({
-            success: false,
-            message: error.message,
-        });
     }
-});
+);
 
 /**
- * @path /v1/user/:id
+ * @path /v1/user/:id/
  * Update a user in the database by their id.
  * @param id The id of the user to update in the database.
  * @body user: The user to update in the database.
@@ -220,6 +269,7 @@ router.put('/:id', async (req: Request, res: Response<IResponseStructure>) => {
         }
 
         const user: IUser = req.body.user;
+        const dataBaseType: string = req.body.dataBaseType;
 
         if (!user) {
             return res.status(400).json({
@@ -228,7 +278,13 @@ router.put('/:id', async (req: Request, res: Response<IResponseStructure>) => {
             });
         }
 
-        const updatedUser = await updateUser(id, user);
+        let updatedUser;
+        //update user in database in mongoDB
+        if (dataBaseType === 'mongoDB')
+            updatedUser = await updateUser(id, user);
+        //update user in database in neo4j
+        else if (dataBaseType === 'neo4j')
+            updatedUser = await updateUserByIdNeo(Number(id), user);
 
         if (!updatedUser) {
             return res.status(400).json({
@@ -251,7 +307,7 @@ router.put('/:id', async (req: Request, res: Response<IResponseStructure>) => {
 });
 
 /**
- * @path /v1/user/:id
+ * @path /v1/user/:id/:dataBaseType
  * Delete a user from the database by their id.
  * @param id The id of the user to delete from the database.
  * @response 200: The user that was deleted from the database.
@@ -259,10 +315,11 @@ router.put('/:id', async (req: Request, res: Response<IResponseStructure>) => {
  */
 
 router.delete(
-    '/:id',
+    '/:id/:dataBaseType',
     async (req: Request, res: Response<IResponseStructure>) => {
         try {
             const id = req.params.id;
+            const dataBaseType: string = req.params.dataBaseType;
 
             if (!id) {
                 return res.status(400).json({
@@ -270,8 +327,12 @@ router.delete(
                     message: 'No id was provided',
                 });
             }
-
-            const deletedUser = await deleteUser(id);
+            let deletedUser;
+            //delete user from database in mongoDB
+            if (dataBaseType === 'mongoDB') deletedUser = await deleteUser(id);
+            //delete user from database in neo4j
+            else if (dataBaseType === 'neo4j')
+                deletedUser = await deleteUserByIdNeo(Number(id));
 
             if (!deletedUser) {
                 return res.status(400).json({
@@ -331,6 +392,7 @@ router.post(
     async (req: Request, res: Response<IResponseStructure>) => {
         try {
             const email = req.body.email;
+            const dataBaseType: string = req.body.dataBaseType;
 
             if (!email) {
                 return res.status(400).json({
@@ -339,8 +401,12 @@ router.post(
                 });
             }
 
-            const user = await getUserByEmail(email);
-            const neo4jUser = await getUserByEmailNeo(email);
+            let user;
+            //get user from database in mongoDB
+            if (dataBaseType === 'mongoDB') user = await getUserByEmail(email);
+            //get user from database in neo4j
+            else if (dataBaseType === 'neo4j')
+                user = await getUserByEmailNeo(email);
 
             if (!user) {
                 return res.status(400).json({
