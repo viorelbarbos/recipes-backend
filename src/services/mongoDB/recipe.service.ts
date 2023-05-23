@@ -1,5 +1,5 @@
 import IRecipe from '../../database/interfaces/IRecipe';
-import { Recipe } from '../../database/schemas/recipe.schema';
+import { Recipe } from '../../database/mongoDB/schemas/recipe.schema';
 
 /**
  * Add a new recipe to the database.

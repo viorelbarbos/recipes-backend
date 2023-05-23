@@ -1,4 +1,4 @@
-import IRecipe from '../interfaces/IRecipe';
+import IRecipe from '../../interfaces/IRecipe';
 import mongoose from 'mongoose';
 
 interface IRecipeDoc extends mongoose.Document, Omit<IRecipe, '_id'> {}

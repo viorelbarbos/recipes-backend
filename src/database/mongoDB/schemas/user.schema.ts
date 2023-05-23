@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import IUser from '../interfaces/IUser';
+import IUser from '../../interfaces/IUser';
 
 interface IUserDoc extends mongoose.Document, Omit<IUser, '_id'> {}
 

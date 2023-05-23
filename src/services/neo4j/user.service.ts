@@ -1,6 +1,6 @@
 import { Driver, QueryResult, Session } from 'neo4j-driver';
-import neo4jConnect from '../../database/neo4jConnect';
 import IUser from '../../database/interfaces/IUser';
+import neo4jConnect from '../../database/ne04j/neo4jConnect';
 
 // Define your Neo4j connection details
 const driver: Driver = neo4jConnect()!;

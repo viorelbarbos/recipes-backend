@@ -4,9 +4,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import session from 'express-session';
 import appConfig from './configs/app.config';
-import dbConnect from './database/dbConnect';
+import dbConnect from './database/mongoDB/dbConnect';
 import v1 from './api/v1';
-import neo4jConnect from './database/neo4jConnect';
+import neo4jConnect from './database/ne04j/neo4jConnect';
 
 dotenv.config();
 

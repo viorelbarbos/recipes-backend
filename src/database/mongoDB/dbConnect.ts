@@ -1,5 +1,5 @@
-import dbConfig from '../configs/db.config';
-import appConfig from '../configs/app.config';
+import dbConfig from '../../configs/db.config';
+import appConfig from '../../configs/app.config';
 import dbClient from './dbClient';
 
 /**
