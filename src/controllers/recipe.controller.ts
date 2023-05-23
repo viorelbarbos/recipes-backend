@@ -9,7 +9,7 @@ import {
     updateRecipe,
     deleteRecipe,
     getRecipesByUserId,
-} from '../services/recipe.service';
+} from '../services/mongoDB/recipe.service';
 
 const router = Router();
 

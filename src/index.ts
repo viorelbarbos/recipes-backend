@@ -6,6 +6,7 @@ import session from 'express-session';
 import appConfig from './configs/app.config';
 import dbConnect from './database/dbConnect';
 import v1 from './api/v1';
+import neo4jConnect from './database/neo4jConnect';
 
 dotenv.config();
 
@@ -35,6 +36,9 @@ app.use(cookieParser());
 
 //connect to db
 dbConnect();
+
+//connect to neo4j
+neo4jConnect();
 
 app.use('/v1', v1);
 

@@ -1,5 +1,5 @@
-import IRecipe from '../database/interfaces/IRecipe';
-import { Recipe } from '../database/schemas/recipe.schema';
+import IRecipe from '../../database/interfaces/IRecipe';
+import { Recipe } from '../../database/schemas/recipe.schema';
 
 /**
  * Add a new recipe to the database.

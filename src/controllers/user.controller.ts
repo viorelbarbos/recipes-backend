@@ -7,9 +7,14 @@ import {
     getUsers,
     updateUser,
     deleteUser,
-} from '../services/user.service';
+} from '../services/mongoDB/user.service';
 import { compareHashPassword, hashPassword } from '../utils/methods/bcrypt';
 import { Router, Response, Request } from 'express';
+import {
+    createUser,
+    getUserByEmailNeo,
+    getUserByIdNeo,
+} from '../services/neo4j/user.service';
 
 const router = Router();
 
@@ -24,7 +29,6 @@ const router = Router();
 router.post('/', async (req: Request, res: Response<IResponseStructure>) => {
     try {
         const user: IUser = req.body.user;
-        console.log('?');
 
         if (
             !user ||
@@ -37,7 +41,8 @@ router.post('/', async (req: Request, res: Response<IResponseStructure>) => {
                 success: false,
                 message: 'Please fill all fields',
             });
-
+        const neo4jUser = await createUser(user);
+        console.log(neo4jUser?.summary);
         //check if user exists
         const userExists = await getUserByEmail(user.email);
         if (userExists) {
@@ -50,8 +55,10 @@ router.post('/', async (req: Request, res: Response<IResponseStructure>) => {
         //hash password
         user.password = await hashPassword(user.password);
 
-        //add user to database
+        //add user to database in mongoDB
         const newUser = await addUser(user);
+
+        //add user to database in neo4j
 
         return res.status(201).json({
             success: true,
@@ -169,6 +176,8 @@ router.get('/:id', async (req: Request, res: Response<IResponseStructure>) => {
         }
 
         const user = await getUserById(id);
+        const neo4jUser = await getUserByIdNeo(Number(id));
+        console.log(neo4jUser);
 
         if (!user) {
             return res.status(400).json({
@@ -299,6 +308,51 @@ router.post(
             return res.status(200).json({
                 success: true,
                 message: 'User logged out successfully',
+            });
+        } catch (error: any) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    }
+);
+
+/**
+ * @path /v1/user/email
+ * get a user by their email.
+ * @body email: The email of the user to get from the database.
+ * @response 200: The user that was retrieved from the database.
+ * @response 400: The user was not retrieved from the database.
+ */
+
+router.post(
+    '/email',
+    async (req: Request, res: Response<IResponseStructure>) => {
+        try {
+            const email = req.body.email;
+
+            if (!email) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No email was provided',
+                });
+            }
+
+            const user = await getUserByEmail(email);
+            const neo4jUser = await getUserByEmailNeo(email);
+
+            if (!user) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'User does not exist',
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: 'User retrieved successfully',
+                data: { user },
             });
         } catch (error: any) {
             return res.status(400).json({

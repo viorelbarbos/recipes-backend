@@ -1,5 +1,5 @@
-import IUser from '../database/interfaces/IUser';
-import { User } from '../database/schemas/user.schema';
+import IUser from '../../database/interfaces/IUser';
+import { User } from '../../database/schemas/user.schema';
 
 /**
  * Add a new user to the database.
