@@ -11,7 +11,6 @@ export const createRecipe = async (
     recipe: IRecipe
 ): Promise<IRecipe | undefined> => {
     const query = `
-        MATCH (user:User {id: $userId })
         CREATE (recipe:Recipe { 
           name: $name,
           description: $description,
@@ -19,15 +18,15 @@ export const createRecipe = async (
           cookTime: $cookTime,
           prepTime: $prepTime,
           servings: $servings,
-          image: $image
+          image: $image,
+          userId: $userId
         })
-        CREATE (user)-[:CREATED]->(recipe)
         WITH recipe
         UNWIND $ingredients as ingredient
         CREATE (recipe)-[:CONTAINS]->(i:Ingredient { 
           name: ingredient.name,
           weight: ingredient.weight
-        }) RETURN {_id: ID(recipe), name: recipe.name, description: recipe.description, type:recipe.type, ingredients.recipe.ingredients, cookTime:recipe.cookTime, prepTime:recipe.cookTime, servings:recipe.servings, image:recipe.image, userId:recipe.userId} as user LIMIT 1
+        }) RETURN {_id: ID(recipe), name: recipe.name, description: recipe.description, type:recipe.type, ingredients:recipe.ingredients, cookTime:recipe.cookTime, prepTime:recipe.cookTime, servings:recipe.servings, image:recipe.image, userId:recipe.userId} as recipe LIMIT 1
       `;
 
     const params = {
@@ -68,7 +67,7 @@ export const createRecipe = async (
 export const getRecipeByIdNeo = async (
     id: number
 ): Promise<IRecipe | undefined> => {
-    const query = `MATCH (recipe:Recipe) WHERE ID(recipe) = $id RETURN {_id: ID(recipe), name: recipe.name, description: recipe.description, type:recipe.type, ingredients.recipe.ingredients, cookTime:recipe.cookTime, prepTime:recipe.cookTime, servings:recipe.servings, image:recipe.image, userId:recipe.userId} as user LIMIT 1`;
+    const query = `MATCH (recipe:Recipe) WHERE ID(recipe) = $id RETURN {_id: ID(recipe), name: recipe.name, description: recipe.description, type:recipe.type, ingredients:recipe.ingredients, cookTime:recipe.cookTime, prepTime:recipe.cookTime, servings:recipe.servings, image:recipe.image, userId:recipe.userId} as user LIMIT 1`;
 
     const result = await session.run(query, { id });
 
@@ -93,7 +92,7 @@ export const getRecipeByIdNeo = async (
  */
 
 export const getAllRecipesNeo = async (): Promise<IRecipe[] | undefined> => {
-    const query = `MATCH (recipe:Recipe) RETURN {_id: ID(recipe), name: recipe.name, description: recipe.description, type:recipe.type, ingredients:recipe.ingredients, cookTime:recipe.cookTime, prepTime:recipe.cookTime, servings:recipe.servings, image:recipe.image, userId:recipe.userId} as recipe`;
+    const query = `MATCH (recipe:Recipe)-[:CONTAINS]->(i:Ingredient) RETURN {_id: ID(recipe), name: recipe.name, description: recipe.description, type:recipe.type, cookTime:recipe.cookTime, prepTime:recipe.cookTime, servings:recipe.servings, image:recipe.image, userId:recipe.userId} as recipe, COLLECT(i) AS ingredients`;
 
     const result = await session.run(query);
 
@@ -105,7 +104,9 @@ export const getAllRecipesNeo = async (): Promise<IRecipe[] | undefined> => {
             name: record.get('recipe').name,
             description: record.get('recipe').description,
             type: record.get('recipe').type,
-            ingredients: record.get('recipe').ingredients,
+            ingredients: record.get('ingredients').map((ingredient: any) => {
+                return ingredient.properties;
+            }),
             cookTime: record.get('recipe').cookTime,
             prepTime: record.get('recipe').prepTime,
             servings: record.get('recipe').servings,
@@ -124,7 +125,7 @@ export const getAllRecipesNeo = async (): Promise<IRecipe[] | undefined> => {
 export const getAllRecipesByUserIdNeo = async (
     userId: number
 ): Promise<IRecipe[] | undefined> => {
-    const query = `MATCH (recipe:Recipe) WHERE recipe.userId = $userId RETURN {_id: ID(recipe), name: recipe.name, description: recipe.description, type:recipe.type, ingredients:recipe.ingredients, cookTime:recipe.cookTime, prepTime:recipe.cookTime, servings:recipe.servings, image:recipe.image, userId:recipe.userId} as recipe`;
+    const query = `MATCH (recipe:Recipe)-[:CONTAINS]->(i:Ingredient) WHERE recipe.userId = $userId RETURN {_id: ID(recipe), name: recipe.name, description: recipe.description, type:recipe.type, ingredients:recipe.ingredients, cookTime:recipe.cookTime, prepTime:recipe.cookTime, servings:recipe.servings, image:recipe.image, userId:recipe.userId} as recipe, COLLECT(i) AS ingredients`;
 
     const result = await session.run(query, { userId });
     if (result.records.length === 0) return undefined;
@@ -134,7 +135,9 @@ export const getAllRecipesByUserIdNeo = async (
             name: record.get('recipe').name,
             description: record.get('recipe').description,
             type: record.get('recipe').type,
-            ingredients: record.get('recipe').ingredients,
+            ingredients: record.get('ingredients').map((ingredient: any) => {
+                return ingredient.properties;
+            }),
             cookTime: record.get('recipe').cookTime,
             prepTime: record.get('recipe').prepTime,
             servings: record.get('recipe').servings,
@@ -181,19 +184,21 @@ export const updateRecipeByIdNeo = async (
 export const deleteRecipeByIdNeo = async (
     id: Number
 ): Promise<IRecipe | undefined> => {
-    const query = `MATCH (recipe:Recipe) WHERE ID(recipe) = $id DETACH DELETE recipe RETURN {_id: ID(recipe), name: recipe.name, description: recipe.description, type:recipe.type, ingredients:recipe.ingredients, cookTime:recipe.cookTime, prepTime:recipe.cookTime, servings:recipe.servings, image:recipe.image, userId:recipe.userId} as recipe`;
+    const query = `MATCH (recipe:Recipe) WHERE ID(recipe) = $id DETACH DELETE recipe `;
+    console.log('aici');
 
     const result = await session.run(query, { id });
+
     return {
-        _id: result.records[0].get('recipe')._id.low,
-        name: result.records[0].get('recipe').name,
-        description: result.records[0].get('recipe').description,
-        type: result.records[0].get('recipe').type,
-        ingredients: result.records[0].get('recipe').ingredients,
-        cookTime: result.records[0].get('recipe').cookTime,
-        prepTime: result.records[0].get('recipe').prepTime,
-        servings: result.records[0].get('recipe').servings,
-        image: result.records[0].get('recipe').image,
-        userId: result.records[0].get('recipe').userId,
+        _id: '0',
+        name: 'deleted',
+        description: 'deleted',
+        type: 'deleted',
+        ingredients: [],
+        cookTime: 0,
+        prepTime: 0,
+        servings: 0,
+        image: 'deleted',
+        userId: 'deleted',
     };
 };

@@ -88,7 +88,7 @@ router.get(
             //get the recipes from mongoDB
             if (dataBaseType === 'mongoDB') recipes = await getRecipes();
             else if (dataBaseType === 'neo4j')
-                recipes = await getAllRecipesNeo();
+                recipes = (await getAllRecipesNeo()) || [];
 
             return res.status(200).json({
                 success: true,
@@ -178,12 +178,12 @@ router.get(
                     success: false,
                     message: 'Please provide an id',
                 });
-            let recipes: IRecipe[] | undefined;
+            let recipes: IRecipe[] = [];
             //get the recipes from mongoDB
             if (dataBaseType === 'mongoDB')
                 recipes = await getRecipesByUserId(id);
             else if (dataBaseType === 'neo4j')
-                recipes = await getAllRecipesByUserIdNeo(Number(id));
+                recipes = (await getAllRecipesByUserIdNeo(Number(id))) || [];
 
             return res.status(200).json({
                 success: true,

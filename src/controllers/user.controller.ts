@@ -113,7 +113,7 @@ router.post(
     '/login',
     async (req: Request, res: Response<IResponseStructure>) => {
         try {
-            const { email, password } = req.body;
+            const { email, password } = req.body.user;
 
             const dataBaseType: string = req.body.dataBaseType;
 
